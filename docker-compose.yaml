@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: atelier_db
+    restart: always
+    environment:
+      POSTGRES_USER: atelier_admin
+      POSTGRES_PASSWORD: atelier_password_2026
+      POSTGRES_DB: moneybadger
+    ports:
+      - "5432:5432"
+    volumes:
+      - atelier_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atelier_admin -d moneybadger"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: atelier_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@atelier.finance
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  atelier_data:
