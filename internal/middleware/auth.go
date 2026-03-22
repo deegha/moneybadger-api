@@ -7,17 +7,28 @@ import (
 
 	"github.com/deegha/moneyBadgerApi/internal/env"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // Define a custom type for context keys to avoid collisions
 type contextKey string
 
-const UserIDKey contextKey = "user_id"
+const userIDKey contextKey = "user_id"
+
+// GetUserID retrieves the typed pgtype.UUID from the context.
+// Use this in your handlers to get a database-ready ID.
+func GetUserID(ctx context.Context) (pgtype.UUID, error) {
+	userID, ok := ctx.Value(userIDKey).(pgtype.UUID)
+	if !ok {
+		return pgtype.UUID{}, fmt.Errorf("user ID not found in context")
+	}
+	return userID, nil
+}
 
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 1. Get the cookie
-		cookie, err := r.Cookie("at_session")
+		cookie, err := r.Cookie("session")
 		if err != nil {
 			http.Error(w, "Unauthorized: No session cookie", http.StatusUnauthorized)
 			return
@@ -26,7 +37,6 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		// 2. Parse the JWT
 		tokenString := cookie.Value
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			// Validate signing method
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
@@ -45,14 +55,22 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		userID, ok := claims["sub"].(string)
+		userIDRaw, ok := claims["sub"].(string)
 		if !ok {
 			http.Error(w, "Unauthorized: Missing user ID", http.StatusUnauthorized)
 			return
 		}
 
-		// 4. Put UserID into context and continue
-		ctx := context.WithValue(r.Context(), UserIDKey, userID)
+		// 4. CONVERSION: Convert string to pgtype.UUID right here
+		var userID pgtype.UUID
+		if err := userID.Scan(userIDRaw); err != nil {
+			// This handles cases where the JWT might have an invalid UUID string
+			http.Error(w, "Unauthorized: Malformed user ID", http.StatusUnauthorized)
+			return
+		}
+
+		// 5. Put the typed userID into context
+		ctx := context.WithValue(r.Context(), userIDKey, userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

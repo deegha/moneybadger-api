@@ -124,18 +124,37 @@ WHERE user_id = $1
   AND month = $2 
   AND year = $3;
 
-
 -- name: GetUserCategoriesWithBudgets :many
 SELECT 
-    c.*, 
-    b.limit_amount as budget_limit,
-    b.month as budget_month,
-    b.year as budget_year
+    c.id,
+    c.user_id,
+    c.name,
+    c.icon,
+    c.color_hex,
+    c.created_at,
+    COALESCE(b.limit_amount, 0.00)::DECIMAL(15,2) as budget_limit,
+    COALESCE(s.total_spent, 0.00)::DECIMAL(15,2) as total_spent,
+    -- Calculate percentage for the progress bar, capped at 100 or allowed to exceed
+    CASE 
+        WHEN COALESCE(b.limit_amount, 0) = 0 THEN 0 
+        ELSE ROUND((COALESCE(s.total_spent, 0) / b.limit_amount) * 100) 
+    END as spent_percentage
 FROM categories c
 LEFT JOIN budgets b ON 
     c.id = b.category_id AND 
-    b.user_id = $1 AND 
     b.month = $2 AND 
     b.year = $3
+LEFT JOIN (
+    /* Subquery to sum transactions for the given month/year */
+    SELECT 
+        category_id, 
+        SUM(amount) as total_spent 
+    FROM transactions 
+    WHERE 
+        EXTRACT(MONTH FROM date) = $2 AND 
+        EXTRACT(YEAR FROM date) = $3 AND
+        type = 'expense' -- Only count expenses toward the budget
+    GROUP BY category_id
+) s ON c.id = s.category_id
 WHERE c.user_id = $1
 ORDER BY c.name ASC;
