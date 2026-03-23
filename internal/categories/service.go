@@ -3,6 +3,7 @@ package categories
 import (
 	"context"
 	"fmt"
+	"time"
 
 	repo "github.com/deegha/moneyBadgerApi/internal/adapters/postgresql/sqlc"
 	"github.com/jackc/pgx/v5"
@@ -52,12 +53,14 @@ func (s *svc) CreateCategories(ctx context.Context, args CreateCategoryRequest) 
 		return repo.Category{}, err
 	}
 
+	now := time.Now()
+
 	_, err = qtx.CreateOrUpdateBudget(ctx, repo.CreateOrUpdateBudgetParams{
 		UserID:      args.UserID,
 		CategoryID:  pgtype.UUID{Bytes: category.ID, Valid: true},
 		LimitAmount: args.LimitAmount,
-		Month:       args.Month,
-		Year:        args.Year,
+		Month:       int32(now.Month()),
+		Year:        int32(now.Year()),
 	})
 
 	if err != nil {
@@ -73,7 +76,11 @@ func (s *svc) CreateCategories(ctx context.Context, args CreateCategoryRequest) 
 
 func (s *svc) ListCategories(ctx context.Context, userID pgtype.UUID) ([]repo.GetUserCategoriesWithBudgetsRow, error) {
 
+	now := time.Now()
+
 	return s.repo.GetUserCategoriesWithBudgets(ctx, repo.GetUserCategoriesWithBudgetsParams{
 		UserID: userID,
+		Month:  int32(now.Month()),
+		Year:   int32(now.Year()),
 	})
 }
