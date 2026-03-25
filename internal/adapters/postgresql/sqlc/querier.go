@@ -16,9 +16,11 @@ type Querier interface {
 	CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	GetBudgetByCategory(ctx context.Context, arg GetBudgetByCategoryParams) (Budget, error)
+	GetMonthlySpendingOverview(ctx context.Context, arg GetMonthlySpendingOverviewParams) ([]GetMonthlySpendingOverviewRow, error)
 	// Calculates the "Total Income" and "Total Expenses" for the current month
 	GetMonthlySummary(ctx context.Context, userID pgtype.UUID) (GetMonthlySummaryRow, error)
 	GetRecentTransactions(ctx context.Context, arg GetRecentTransactionsParams) ([]GetRecentTransactionsRow, error)
+	GetSpendingOverview(ctx context.Context, arg GetSpendingOverviewParams) ([]GetSpendingOverviewRow, error)
 	// Used to calculate total pages in the UI
 	GetTransactionsCount(ctx context.Context, arg GetTransactionsCountParams) (int64, error)
 	// Fetch transactions with pagination and date range filtering
@@ -28,6 +30,7 @@ type Querier interface {
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserCategories(ctx context.Context, userID pgtype.UUID) ([]Category, error)
 	GetUserCategoriesWithBudgets(ctx context.Context, arg GetUserCategoriesWithBudgetsParams) ([]GetUserCategoriesWithBudgetsRow, error)
+	GetWeeklySpendingOverview(ctx context.Context, userID pgtype.UUID) ([]GetWeeklySpendingOverviewRow, error)
 	ListBudgetsByMonth(ctx context.Context, arg ListBudgetsByMonthParams) ([]Budget, error)
 	UpdateRecurringBillDate(ctx context.Context, arg UpdateRecurringBillDateParams) error
 }

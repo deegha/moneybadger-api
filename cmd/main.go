@@ -22,6 +22,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	conn, err := pgx.Connect(ctx, cfg.db.dsn)
+
 	if err != nil {
 		slog.Error("Unable to connect to database", "error", err)
 		os.Exit(1)

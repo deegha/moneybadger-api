@@ -56,6 +56,8 @@ func (app *application) mount() http.Handler {
 		r.Use(auth.AuthMiddleware)
 
 		r.Get("/v1/transactions", transactionsHandler.ListTransactions)
+		r.Get("/v1/transactions/summary", transactionsHandler.GetSummary)
+		r.Get("/v1/transactions/overview", transactionsHandler.GetOverView)
 		r.Post("/v1/transactions", transactionsHandler.CreateTransaction)
 
 		r.Get("/v1/categories", categoriesHandler.ListCategories)

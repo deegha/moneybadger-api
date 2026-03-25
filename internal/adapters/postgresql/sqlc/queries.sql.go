@@ -213,6 +213,60 @@ func (q *Queries) GetBudgetByCategory(ctx context.Context, arg GetBudgetByCatego
 	return i, err
 }
 
+const getMonthlySpendingOverview = `-- name: GetMonthlySpendingOverview :many
+WITH RECURSIVE days AS (
+    -- Start at the first day of the requested month
+    SELECT 
+        make_date($2::int, $3::int, 1)::date AS day
+    UNION ALL
+    -- Increment by 1 day until the end of the month
+    SELECT 
+        (day + interval '1 day')::date
+    FROM days
+    WHERE day < (make_date($2::int, $3::int, 1) + interval '1 month - 1 day')::date
+)
+SELECT 
+    d.day,
+    COALESCE(SUM(t.amount), 0)::numeric AS total_amount
+FROM days d
+LEFT JOIN transactions t ON d.day = t.date 
+    AND t.user_id = $1 
+    AND t.type = 'expense'
+GROUP BY d.day
+ORDER BY d.day ASC
+`
+
+type GetMonthlySpendingOverviewParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	Year   int32       `json:"year"`
+	Month  int32       `json:"month"`
+}
+
+type GetMonthlySpendingOverviewRow struct {
+	Day         pgtype.Date    `json:"day"`
+	TotalAmount pgtype.Numeric `json:"total_amount"`
+}
+
+func (q *Queries) GetMonthlySpendingOverview(ctx context.Context, arg GetMonthlySpendingOverviewParams) ([]GetMonthlySpendingOverviewRow, error) {
+	rows, err := q.db.Query(ctx, getMonthlySpendingOverview, arg.UserID, arg.Year, arg.Month)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetMonthlySpendingOverviewRow
+	for rows.Next() {
+		var i GetMonthlySpendingOverviewRow
+		if err := rows.Scan(&i.Day, &i.TotalAmount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getMonthlySummary = `-- name: GetMonthlySummary :one
 SELECT 
     SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END)::DECIMAL(15,2) as total_income,
@@ -296,6 +350,61 @@ func (q *Queries) GetRecentTransactions(ctx context.Context, arg GetRecentTransa
 			&i.CategoryIcon,
 			&i.CategoryColor,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSpendingOverview = `-- name: GetSpendingOverview :many
+WITH RECURSIVE days AS (
+    -- Start at the first day of the given month/year
+    SELECT 
+        make_date($2::int, $3::int, 1)::date AS day
+    UNION ALL
+    -- Increment by 1 day until we hit the last day of the month
+    SELECT 
+        (day + interval '1 day')::date
+    FROM days
+    WHERE day < (make_date($2::int, $3::int, 1) + interval '1 month - 1 day')::date
+)
+SELECT 
+    d.day,
+    -- Aggregate expenses, defaulting to 0 for days with no activity
+    COALESCE(SUM(t.amount), 0)::numeric AS total_amount
+FROM days d
+LEFT JOIN transactions t ON d.day = t.date 
+    AND t.user_id = $1 
+    AND t.type = 'expense'
+GROUP BY d.day
+ORDER BY d.day ASC
+`
+
+type GetSpendingOverviewParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	Year   int32       `json:"year"`
+	Month  int32       `json:"month"`
+}
+
+type GetSpendingOverviewRow struct {
+	Day         pgtype.Date    `json:"day"`
+	TotalAmount pgtype.Numeric `json:"total_amount"`
+}
+
+func (q *Queries) GetSpendingOverview(ctx context.Context, arg GetSpendingOverviewParams) ([]GetSpendingOverviewRow, error) {
+	rows, err := q.db.Query(ctx, getSpendingOverview, arg.UserID, arg.Year, arg.Month)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetSpendingOverviewRow
+	for rows.Next() {
+		var i GetSpendingOverviewRow
+		if err := rows.Scan(&i.Day, &i.TotalAmount); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -578,6 +687,43 @@ func (q *Queries) GetUserCategoriesWithBudgets(ctx context.Context, arg GetUserC
 			&i.TotalSpent,
 			&i.SpentPercentage,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getWeeklySpendingOverview = `-- name: GetWeeklySpendingOverview :many
+SELECT 
+    date_trunc('week', date)::date AS week_start,
+    SUM(amount)::numeric AS total_amount
+FROM transactions
+WHERE user_id = $1 
+    AND type = 'expense'
+    AND date >= CURRENT_DATE - INTERVAL '12 weeks' -- Shows last 3 months of habits
+GROUP BY week_start
+ORDER BY week_start ASC
+`
+
+type GetWeeklySpendingOverviewRow struct {
+	WeekStart   pgtype.Date    `json:"week_start"`
+	TotalAmount pgtype.Numeric `json:"total_amount"`
+}
+
+func (q *Queries) GetWeeklySpendingOverview(ctx context.Context, userID pgtype.UUID) ([]GetWeeklySpendingOverviewRow, error) {
+	rows, err := q.db.Query(ctx, getWeeklySpendingOverview, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetWeeklySpendingOverviewRow
+	for rows.Next() {
+		var i GetWeeklySpendingOverviewRow
+		if err := rows.Scan(&i.WeekStart, &i.TotalAmount); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

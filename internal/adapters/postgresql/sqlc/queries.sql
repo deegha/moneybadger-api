@@ -158,3 +158,62 @@ LEFT JOIN (
 ) s ON c.id = s.category_id
 WHERE c.user_id = $1
 ORDER BY c.name ASC;
+
+
+-- name: GetSpendingOverview :many
+WITH RECURSIVE days AS (
+    -- Start at the first day of the given month/year
+    SELECT 
+        make_date(sqlc.arg('year')::int, sqlc.arg('month')::int, 1)::date AS day
+    UNION ALL
+    -- Increment by 1 day until we hit the last day of the month
+    SELECT 
+        (day + interval '1 day')::date
+    FROM days
+    WHERE day < (make_date(sqlc.arg('year')::int, sqlc.arg('month')::int, 1) + interval '1 month - 1 day')::date
+)
+SELECT 
+    d.day,
+    -- Aggregate expenses, defaulting to 0 for days with no activity
+    COALESCE(SUM(t.amount), 0)::numeric AS total_amount
+FROM days d
+LEFT JOIN transactions t ON d.day = t.date 
+    AND t.user_id = $1 
+    AND t.type = 'expense'
+GROUP BY d.day
+ORDER BY d.day ASC;
+
+
+-- name: GetMonthlySpendingOverview :many
+WITH RECURSIVE days AS (
+    -- Start at the first day of the requested month
+    SELECT 
+        make_date(sqlc.arg('year')::int, sqlc.arg('month')::int, 1)::date AS day
+    UNION ALL
+    -- Increment by 1 day until the end of the month
+    SELECT 
+        (day + interval '1 day')::date
+    FROM days
+    WHERE day < (make_date(sqlc.arg('year')::int, sqlc.arg('month')::int, 1) + interval '1 month - 1 day')::date
+)
+SELECT 
+    d.day,
+    COALESCE(SUM(t.amount), 0)::numeric AS total_amount
+FROM days d
+LEFT JOIN transactions t ON d.day = t.date 
+    AND t.user_id = $1 
+    AND t.type = 'expense'
+GROUP BY d.day
+ORDER BY d.day ASC;
+
+
+-- name: GetWeeklySpendingOverview :many
+SELECT 
+    date_trunc('week', date)::date AS week_start,
+    SUM(amount)::numeric AS total_amount
+FROM transactions
+WHERE user_id = $1 
+    AND type = 'expense'
+    AND date >= CURRENT_DATE - INTERVAL '12 weeks' -- Shows last 3 months of habits
+GROUP BY week_start
+ORDER BY week_start ASC;
