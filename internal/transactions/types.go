@@ -35,3 +35,12 @@ type OverViewRequest struct {
 	Year  int32 `json:"year"`
 	Month int32 `json:"month"`
 }
+
+type ListTransacitonsRequest struct {
+	UserID     pgtype.UUID `json:"user_id"`
+	Limit      int32       `json:"limit"`
+	Offset     int32       `json:"offset"`
+	StartDate  pgtype.Date `json:"start_date"`
+	EndDate    pgtype.Date `json:"end_date"`
+	CategoryID pgtype.UUID `json:"category_id"`
+}

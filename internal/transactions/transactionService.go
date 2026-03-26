@@ -11,7 +11,10 @@ import (
 )
 
 type TransactionService interface {
-	ListTransactions(ctx context.Context) ([]repo.GetTransactionsFilteredRow, error)
+	ListTransactions(
+		ctx context.Context,
+		args ListTransacitonsRequest,
+	) ([]repo.GetTransactionsFilteredRow, error)
 	CreateTransaction(ctx context.Context, arg CreateTransactionRequest) (repo.Transaction, error)
 	GetSummaryMonth(ctx context.Context, UserID pgtype.UUID) (repo.GetMonthlySummaryRow, error)
 	GetOverView(ctx context.Context, args OverViewParams) (ChartData, error)
@@ -27,8 +30,11 @@ func NewService(repo repo.Querier) TransactionService {
 	}
 }
 
-func (s *svc) ListTransactions(ctx context.Context) ([]repo.GetTransactionsFilteredRow, error) {
-	return s.repo.GetTransactionsFiltered(ctx, repo.GetTransactionsFilteredParams{})
+func (s *svc) ListTransactions(
+	ctx context.Context,
+	args ListTransacitonsRequest,
+) ([]repo.GetTransactionsFilteredRow, error) {
+	return s.repo.GetTransactionsFiltered(ctx, repo.GetTransactionsFilteredParams(args))
 }
 
 func (s *svc) CreateTransaction(

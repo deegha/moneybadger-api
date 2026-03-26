@@ -8,6 +8,7 @@ import (
 	repo "github.com/deegha/moneyBadgerApi/internal/adapters/postgresql/sqlc"
 	"github.com/deegha/moneyBadgerApi/internal/json"
 	auth "github.com/deegha/moneyBadgerApi/internal/middleware"
+	"github.com/deegha/moneyBadgerApi/internal/utils"
 )
 
 type handler struct {
@@ -19,7 +20,28 @@ func NewHandler(s TransactionService) *handler {
 }
 
 func (h *handler) ListTransactions(w http.ResponseWriter, r *http.Request) {
-	transactions, err := h.service.ListTransactions(r.Context())
+	userID, err := auth.GetUserID(r.Context())
+	if err != nil {
+		log.Printf("Error getting the user id %v", err)
+		json.Writer(w, http.StatusInternalServerError, nil, err.Error())
+	}
+
+	query := r.URL.Query()
+
+	Limit, _ := strconv.Atoi(query.Get("limit"))
+	Offset, _ := strconv.Atoi(query.Get("offset"))
+	StartDate, _ := utils.StringToPgDate(query.Get("start_date"))
+	EndDate, _ := utils.StringToPgDate(query.Get("end_date"))
+	CategoryId, _ := utils.ParseUUID(query.Get("category_id"))
+
+	transactions, err := h.service.ListTransactions(r.Context(), ListTransacitonsRequest{
+		UserID:     userID,
+		Limit:      int32(Limit),
+		Offset:     int32(Offset),
+		StartDate:  StartDate,
+		EndDate:    EndDate,
+		CategoryID: CategoryId,
+	})
 	if err != nil {
 		log.Printf("error listing transactions: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
