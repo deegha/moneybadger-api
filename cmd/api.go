@@ -5,15 +5,16 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	repo "github.com/deegha/moneyBadgerApi/internal/adapters/postgresql/sqlc"
 	"github.com/deegha/moneyBadgerApi/internal/categories"
 	auth "github.com/deegha/moneyBadgerApi/internal/middleware"
 	"github.com/deegha/moneyBadgerApi/internal/transactions"
 	"github.com/deegha/moneyBadgerApi/internal/users"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
-	"github.com/jackc/pgx/v5"
 )
 
 func (app *application) mount() http.Handler {
@@ -40,7 +41,7 @@ func (app *application) mount() http.Handler {
 		w.Write([]byte("all good"))
 	})
 
-	//public route
+	// public route
 	usersService := users.NewService(repo.New(app.db))
 	usersHandler := users.NewHandler(usersService)
 
@@ -79,12 +80,11 @@ func (app *application) run(h http.Handler) error {
 	log.Printf("starting server on %s", app.config.addr)
 
 	return srv.ListenAndServe()
-
 }
 
 type application struct {
 	config config
-	db     *pgx.Conn
+	db     *pgxpool.Pool
 }
 
 type config struct {

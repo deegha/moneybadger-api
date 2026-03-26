@@ -1,8 +1,9 @@
 package transactions
 
 import (
-	repo "github.com/deegha/moneyBadgerApi/internal/adapters/postgresql/sqlc"
 	"github.com/jackc/pgx/v5/pgtype"
+
+	repo "github.com/deegha/moneyBadgerApi/internal/adapters/postgresql/sqlc"
 )
 
 type TransactionType string

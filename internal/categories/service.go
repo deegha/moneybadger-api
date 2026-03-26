@@ -5,36 +5,41 @@ import (
 	"fmt"
 	"time"
 
-	repo "github.com/deegha/moneyBadgerApi/internal/adapters/postgresql/sqlc"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	repo "github.com/deegha/moneyBadgerApi/internal/adapters/postgresql/sqlc"
 )
 
 type Service interface {
 	CreateCategories(ctx context.Context, args CreateCategoryRequest) (repo.Category, error)
-	ListCategories(ctx context.Context, userID pgtype.UUID) ([]repo.GetUserCategoriesWithBudgetsRow, error)
+	ListCategories(
+		ctx context.Context,
+		userID pgtype.UUID,
+	) ([]repo.GetUserCategoriesWithBudgetsRow, error)
 }
 
 type svc struct {
 	repo repo.Queries
-	db   *pgx.Conn
+	db   *pgxpool.Pool
 }
 
-func NewService(repo repo.Queries, db *pgx.Conn) Service {
+func NewService(repo repo.Queries, db *pgxpool.Pool) Service {
 	return &svc{
 		repo: repo,
 		db:   db,
 	}
 }
 
-func (s *svc) CreateCategories(ctx context.Context, args CreateCategoryRequest) (repo.Category, error) {
-
+func (s *svc) CreateCategories(
+	ctx context.Context,
+	args CreateCategoryRequest,
+) (repo.Category, error) {
 	if args.Name == "" {
 		return repo.Category{}, fmt.Errorf("Name of the category is required")
 	}
 
 	tx, err := s.db.Begin(ctx)
-
 	if err != nil {
 		return repo.Category{}, fmt.Errorf("Something wrong when creating transaction %w", err)
 	}
@@ -48,7 +53,6 @@ func (s *svc) CreateCategories(ctx context.Context, args CreateCategoryRequest) 
 		Icon:     args.Icon,
 		ColorHex: args.ColorHex,
 	})
-
 	if err != nil {
 		return repo.Category{}, err
 	}
@@ -62,7 +66,6 @@ func (s *svc) CreateCategories(ctx context.Context, args CreateCategoryRequest) 
 		Month:       int32(now.Month()),
 		Year:        int32(now.Year()),
 	})
-
 	if err != nil {
 		return repo.Category{}, err
 	}
@@ -74,8 +77,10 @@ func (s *svc) CreateCategories(ctx context.Context, args CreateCategoryRequest) 
 	return category, nil
 }
 
-func (s *svc) ListCategories(ctx context.Context, userID pgtype.UUID) ([]repo.GetUserCategoriesWithBudgetsRow, error) {
-
+func (s *svc) ListCategories(
+	ctx context.Context,
+	userID pgtype.UUID,
+) ([]repo.GetUserCategoriesWithBudgetsRow, error) {
 	now := time.Now()
 
 	return s.repo.GetUserCategoriesWithBudgets(ctx, repo.GetUserCategoriesWithBudgetsParams{
