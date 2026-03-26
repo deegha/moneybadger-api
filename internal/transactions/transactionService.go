@@ -10,7 +10,7 @@ import (
 	repo "github.com/deegha/moneyBadgerApi/internal/adapters/postgresql/sqlc"
 )
 
-type Service interface {
+type TransactionService interface {
 	ListTransactions(ctx context.Context) ([]repo.GetTransactionsFilteredRow, error)
 	CreateTransaction(ctx context.Context, arg CreateTransactionRequest) (repo.Transaction, error)
 	GetSummaryMonth(ctx context.Context, UserID pgtype.UUID) (repo.GetMonthlySummaryRow, error)
@@ -21,7 +21,7 @@ type svc struct {
 	repo repo.Querier
 }
 
-func NewService(repo repo.Querier) Service {
+func NewService(repo repo.Querier) TransactionService {
 	return &svc{
 		repo: repo,
 	}
@@ -59,7 +59,14 @@ func (s *svc) GetSummaryMonth(
 
 func (s *svc) GetOverView(ctx context.Context, args OverViewParams) (ChartData, error) {
 	var chartData ChartData
+
+	dataWeekly := make(chan []repo.GetWeeklySpendingOverviewRow)
+	dataMonthly := make(chan []repo.GetMonthlySpendingOverviewRow)
+	dataDaily := make(chan []repo.GetSpendingOverviewRow)
+
 	g, ctx := errgroup.WithContext(ctx)
+
+	// wg := sync.WaitGroup{}
 
 	// 1. Fetch Weekly Data
 	g.Go(func() error {
@@ -67,7 +74,8 @@ func (s *svc) GetOverView(ctx context.Context, args OverViewParams) (ChartData, 
 		if err != nil {
 			return err
 		}
-		chartData.Weekly = weekly
+		dataWeekly <- weekly
+		close(dataWeekly)
 		return nil
 	})
 
@@ -84,7 +92,8 @@ func (s *svc) GetOverView(ctx context.Context, args OverViewParams) (ChartData, 
 		if err != nil {
 			return err
 		}
-		chartData.Monthly = monthly
+		dataMonthly <- monthly
+		close(dataMonthly)
 		return nil
 	})
 
@@ -98,9 +107,16 @@ func (s *svc) GetOverView(ctx context.Context, args OverViewParams) (ChartData, 
 		if err != nil {
 			return err
 		}
-		chartData.Daily = daily
+		dataDaily <- daily
+		close(dataDaily)
 		return nil
 	})
+
+	chartData = ChartData{
+		Weekly:  <-dataWeekly,
+		Daily:   <-dataDaily,
+		Monthly: <-dataMonthly,
+	}
 
 	// Wait for all goroutines to finish
 	if err := g.Wait(); err != nil {

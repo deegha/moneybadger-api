@@ -10,16 +10,15 @@ import (
 )
 
 type handler struct {
-	service Service
+	service CategoryService
 }
 
-func NewHandler(s Service) *handler {
+func NewHandler(s CategoryService) *handler {
 	return &handler{service: s}
 }
 
 func (h *handler) CreateCategories(w http.ResponseWriter, r *http.Request) {
 	userID, err := auth.GetUserID(r.Context())
-
 	if err != nil {
 		json.Writer(w, http.StatusUnauthorized, nil, "Unauthorized")
 		return
@@ -37,7 +36,6 @@ func (h *handler) CreateCategories(w http.ResponseWriter, r *http.Request) {
 	}
 
 	category, err := h.service.CreateCategories(r.Context(), request)
-
 	if err != nil {
 		log.Printf("Error creating category: %v", err)
 		json.Writer(w, http.StatusInternalServerError, nil, err.Error())
@@ -48,7 +46,6 @@ func (h *handler) CreateCategories(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) ListCategories(w http.ResponseWriter, r *http.Request) {
-
 	userID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		json.Writer(w, http.StatusUnauthorized, nil, "Unauthorized")
@@ -62,7 +59,12 @@ func (h *handler) ListCategories(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(categories) == 0 {
-		json.Writer(w, http.StatusOK, []repo.GetUserCategoriesWithBudgetsRow{}, "Successfully fetched categories")
+		json.Writer(
+			w,
+			http.StatusOK,
+			[]repo.GetUserCategoriesWithBudgetsRow{},
+			"Successfully fetched categories",
+		)
 		return
 	}
 

@@ -11,7 +11,7 @@ import (
 	repo "github.com/deegha/moneyBadgerApi/internal/adapters/postgresql/sqlc"
 )
 
-type Service interface {
+type CategoryService interface {
 	CreateCategories(ctx context.Context, args CreateCategoryRequest) (repo.Category, error)
 	ListCategories(
 		ctx context.Context,
@@ -24,7 +24,7 @@ type svc struct {
 	db   *pgxpool.Pool
 }
 
-func NewService(repo repo.Queries, db *pgxpool.Pool) Service {
+func NewService(repo repo.Queries, db *pgxpool.Pool) CategoryService {
 	return &svc{
 		repo: repo,
 		db:   db,

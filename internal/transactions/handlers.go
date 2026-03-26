@@ -11,10 +11,10 @@ import (
 )
 
 type handler struct {
-	service Service
+	service TransactionService
 }
 
-func NewHandler(s Service) *handler {
+func NewHandler(s TransactionService) *handler {
 	return &handler{service: s}
 }
 
