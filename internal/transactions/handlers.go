@@ -19,9 +19,7 @@ func NewHandler(s Service) *handler {
 }
 
 func (h *handler) ListTransactions(w http.ResponseWriter, r *http.Request) {
-
 	transactions, err := h.service.ListTransactions(r.Context())
-
 	if err != nil {
 		log.Printf("error listing transactions: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -38,6 +36,10 @@ func (h *handler) ListTransactions(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
 	userID, err := auth.GetUserID(r.Context())
+	if err != nil {
+		log.Printf("Error getting the user id %v", err)
+		json.Writer(w, http.StatusInternalServerError, nil, err.Error())
+	}
 
 	var req CreateTransactionRequest
 
@@ -67,7 +69,6 @@ func (h *handler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	summary, err := h.service.GetSummaryMonth(r.Context(), userID)
-
 	if err != nil {
 		log.Printf("Error while fetching transaction summary for user %v: %v", userID, err)
 		json.Writer(w, http.StatusBadRequest, nil, err.Error())
@@ -94,7 +95,6 @@ func (h *handler) GetOverView(w http.ResponseWriter, r *http.Request) {
 		Month:  int32(month),
 		Year:   int32(year),
 	})
-
 	if err != nil {
 		log.Printf("Error while fetching transaction overview for user %v: %v", userID, err)
 		json.Writer(w, http.StatusBadRequest, nil, err.Error())

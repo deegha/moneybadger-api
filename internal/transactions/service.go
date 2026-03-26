@@ -4,15 +4,16 @@ import (
 	"context"
 	"fmt"
 
-	repo "github.com/deegha/moneyBadgerApi/internal/adapters/postgresql/sqlc"
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/sync/errgroup"
+
+	repo "github.com/deegha/moneyBadgerApi/internal/adapters/postgresql/sqlc"
 )
 
 type Service interface {
 	ListTransactions(ctx context.Context) ([]repo.GetTransactionsFilteredRow, error)
 	CreateTransaction(ctx context.Context, arg CreateTransactionRequest) (repo.Transaction, error)
-	GetSummaryMonth(ctx context.Context, userId pgtype.UUID) (repo.GetMonthlySummaryRow, error)
+	GetSummaryMonth(ctx context.Context, UserID pgtype.UUID) (repo.GetMonthlySummaryRow, error)
 	GetOverView(ctx context.Context, args OverViewParams) (ChartData, error)
 }
 
@@ -27,12 +28,13 @@ func NewService(repo repo.Querier) Service {
 }
 
 func (s *svc) ListTransactions(ctx context.Context) ([]repo.GetTransactionsFilteredRow, error) {
-
 	return s.repo.GetTransactionsFiltered(ctx, repo.GetTransactionsFilteredParams{})
 }
 
-func (s *svc) CreateTransaction(ctx context.Context, arg CreateTransactionRequest) (repo.Transaction, error) {
-
+func (s *svc) CreateTransaction(
+	ctx context.Context,
+	arg CreateTransactionRequest,
+) (repo.Transaction, error) {
 	if arg.Type != "income" && arg.Type != "expense" {
 		return repo.Transaction{}, fmt.Errorf("type must be either 'income' or 'expense'")
 	}
@@ -46,12 +48,13 @@ func (s *svc) CreateTransaction(ctx context.Context, arg CreateTransactionReques
 		MerchantName: arg.MerchantName,
 		IsRecurring:  arg.IsRecurring,
 	})
-
 }
 
-func (s *svc) GetSummaryMonth(ctx context.Context, userId pgtype.UUID) (repo.GetMonthlySummaryRow, error) {
-
-	return s.repo.GetMonthlySummary(ctx, userId)
+func (s *svc) GetSummaryMonth(
+	ctx context.Context,
+	UserID pgtype.UUID,
+) (repo.GetMonthlySummaryRow, error) {
+	return s.repo.GetMonthlySummary(ctx, UserID)
 }
 
 func (s *svc) GetOverView(ctx context.Context, args OverViewParams) (ChartData, error) {
@@ -70,11 +73,14 @@ func (s *svc) GetOverView(ctx context.Context, args OverViewParams) (ChartData, 
 
 	// 2. Fetch Monthly Data
 	g.Go(func() error {
-		monthly, err := s.repo.GetMonthlySpendingOverview(ctx, repo.GetMonthlySpendingOverviewParams{
-			UserID: args.UserID,
-			Month:  args.Month,
-			Year:   args.Year,
-		})
+		monthly, err := s.repo.GetMonthlySpendingOverview(
+			ctx,
+			repo.GetMonthlySpendingOverviewParams{
+				UserID: args.UserID,
+				Month:  args.Month,
+				Year:   args.Year,
+			},
+		)
 		if err != nil {
 			return err
 		}
