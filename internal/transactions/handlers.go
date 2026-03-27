@@ -43,7 +43,7 @@ func (h *handler) ListTransactions(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Printf("error listing transactions: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		json.Writer(w, http.StatusBadRequest, nil, err.Error())
 		return
 	}
 
