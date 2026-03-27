@@ -44,3 +44,8 @@ type ListTransacitonsRequest struct {
 	EndDate    pgtype.Date `json:"end_date"`
 	CategoryID pgtype.UUID `json:"category_id"`
 }
+
+type ListTransacitonsResponse struct {
+	Transactions []repo.GetTransactionsFilteredRow `json:"transactions"`
+	TotalCount   int                               `json:"total_count"`
+}

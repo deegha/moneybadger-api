@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	repo "github.com/deegha/moneyBadgerApi/internal/adapters/postgresql/sqlc"
 	"github.com/deegha/moneyBadgerApi/internal/json"
 	auth "github.com/deegha/moneyBadgerApi/internal/middleware"
 	"github.com/deegha/moneyBadgerApi/internal/utils"
@@ -32,7 +31,7 @@ func (h *handler) ListTransactions(w http.ResponseWriter, r *http.Request) {
 	Offset, _ := strconv.Atoi(query.Get("offset"))
 	StartDate, _ := utils.StringToPgDate(query.Get("start_date"))
 	EndDate, _ := utils.StringToPgDate(query.Get("end_date"))
-	CategoryId, _ := utils.ParseUUID(query.Get("category_id"))
+	CategoryID, _ := utils.ParseUUID(query.Get("category_id"))
 
 	transactions, err := h.service.ListTransactions(r.Context(), ListTransacitonsRequest{
 		UserID:     userID,
@@ -40,16 +39,11 @@ func (h *handler) ListTransactions(w http.ResponseWriter, r *http.Request) {
 		Offset:     int32(Offset),
 		StartDate:  StartDate,
 		EndDate:    EndDate,
-		CategoryID: CategoryId,
+		CategoryID: CategoryID,
 	})
 	if err != nil {
 		log.Printf("error listing transactions: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if len(transactions) == 0 {
-		json.Writer(w, http.StatusOK, []repo.GetTransactionsFilteredRow{}, "No transactions found")
 		return
 	}
 

@@ -14,7 +14,7 @@ type TransactionService interface {
 	ListTransactions(
 		ctx context.Context,
 		args ListTransacitonsRequest,
-	) ([]repo.GetTransactionsFilteredRow, error)
+	) (ListTransacitonsResponse, error)
 	CreateTransaction(ctx context.Context, arg CreateTransactionRequest) (repo.Transaction, error)
 	GetSummaryMonth(ctx context.Context, UserID pgtype.UUID) (repo.GetMonthlySummaryRow, error)
 	GetOverView(ctx context.Context, args OverViewParams) (ChartData, error)
@@ -33,8 +33,28 @@ func NewService(repo repo.Querier) TransactionService {
 func (s *svc) ListTransactions(
 	ctx context.Context,
 	args ListTransacitonsRequest,
-) ([]repo.GetTransactionsFilteredRow, error) {
-	return s.repo.GetTransactionsFiltered(ctx, repo.GetTransactionsFilteredParams(args))
+) (ListTransacitonsResponse, error) {
+	trnasactions, err := s.repo.GetTransactionsFiltered(
+		ctx,
+		repo.GetTransactionsFilteredParams(args),
+	)
+	if err != nil {
+		return ListTransacitonsResponse{}, err
+	}
+
+	totalCount, err := s.repo.GetTransactionsCount(ctx, repo.GetTransactionsCountParams{
+		UserID:    args.UserID,
+		StartDate: args.StartDate,
+		EndDate:   args.EndDate,
+	})
+	if err != nil {
+		return ListTransacitonsResponse{}, err
+	}
+
+	return ListTransacitonsResponse{
+		Transactions: trnasactions,
+		TotalCount:   int(totalCount),
+	}, nil
 }
 
 func (s *svc) CreateTransaction(
