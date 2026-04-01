@@ -85,14 +85,7 @@ func (s *svc) GetSummaryMonth(
 
 func (s *svc) GetOverView(ctx context.Context, args OverViewParams) (ChartData, error) {
 	var chartData ChartData
-
-	dataWeekly := make(chan []repo.GetWeeklySpendingOverviewRow)
-	dataMonthly := make(chan []repo.GetMonthlySpendingOverviewRow)
-	dataDaily := make(chan []repo.GetSpendingOverviewRow)
-
 	g, ctx := errgroup.WithContext(ctx)
-
-	// wg := sync.WaitGroup{}
 
 	// 1. Fetch Weekly Data
 	g.Go(func() error {
@@ -100,26 +93,21 @@ func (s *svc) GetOverView(ctx context.Context, args OverViewParams) (ChartData, 
 		if err != nil {
 			return err
 		}
-		dataWeekly <- weekly
-		close(dataWeekly)
+		chartData.Weekly = weekly // Direct assignment is safe because no other goroutine touches this field
 		return nil
 	})
 
 	// 2. Fetch Monthly Data
 	g.Go(func() error {
-		monthly, err := s.repo.GetMonthlySpendingOverview(
-			ctx,
-			repo.GetMonthlySpendingOverviewParams{
-				UserID: args.UserID,
-				Month:  args.Month,
-				Year:   args.Year,
-			},
-		)
+		monthly, err := s.repo.GetMonthlySpendingOverview(ctx, repo.GetMonthlySpendingOverviewParams{
+			UserID: args.UserID,
+			Month:  args.Month,
+			Year:   args.Year,
+		})
 		if err != nil {
 			return err
 		}
-		dataMonthly <- monthly
-		close(dataMonthly)
+		chartData.Monthly = monthly
 		return nil
 	})
 
@@ -133,18 +121,11 @@ func (s *svc) GetOverView(ctx context.Context, args OverViewParams) (ChartData, 
 		if err != nil {
 			return err
 		}
-		dataDaily <- daily
-		close(dataDaily)
+		chartData.Daily = daily
 		return nil
 	})
 
-	chartData = ChartData{
-		Weekly:  <-dataWeekly,
-		Daily:   <-dataDaily,
-		Monthly: <-dataMonthly,
-	}
-
-	// Wait for all goroutines to finish
+	// Wait for ALL to finish or for the first ERROR to occur
 	if err := g.Wait(); err != nil {
 		return ChartData{}, err
 	}

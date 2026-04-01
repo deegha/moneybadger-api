@@ -1,6 +1,7 @@
 package users
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -52,6 +53,7 @@ func (h *handler) Register(w http.ResponseWriter, r *http.Request) {
 	res, err := h.service.register(r.Context(), req.Name, req.Email, req.Password)
 
 	if err != nil {
+		log.Printf(err.Error())
 		http.Error(w, "registration failed: "+err.Error(), http.StatusBadRequest)
 		return
 	}

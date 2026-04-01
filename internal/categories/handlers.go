@@ -3,6 +3,7 @@ package categories
 import (
 	"log"
 	"net/http"
+	"strconv"
 
 	repo "github.com/deegha/moneyBadgerApi/internal/adapters/postgresql/sqlc"
 	"github.com/deegha/moneyBadgerApi/internal/json"
@@ -52,7 +53,17 @@ func (h *handler) ListCategories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	categories, err := h.service.ListCategories(r.Context(), userID)
+	query := r.URL.Query()
+	month, _ := strconv.Atoi(query.Get("month"))
+	year, _ := strconv.Atoi(query.Get("year"))
+
+	arg := GetCategories{
+		UserID: userID,
+		Month:  int32(month),
+		Year:   int32(year),
+	}
+
+	categories, err := h.service.ListCategories(r.Context(), arg)
 	if err != nil {
 		json.Writer(w, http.StatusInternalServerError, nil, "Failed to fetch the categories")
 		return

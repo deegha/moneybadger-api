@@ -15,7 +15,7 @@ type CategoryService interface {
 	CreateCategories(ctx context.Context, args CreateCategoryRequest) (repo.Category, error)
 	ListCategories(
 		ctx context.Context,
-		userID pgtype.UUID,
+		arge GetCategories,
 	) ([]repo.GetUserCategoriesWithBudgetsRow, error)
 }
 
@@ -79,13 +79,12 @@ func (s *svc) CreateCategories(
 
 func (s *svc) ListCategories(
 	ctx context.Context,
-	userID pgtype.UUID,
+	args GetCategories,
 ) ([]repo.GetUserCategoriesWithBudgetsRow, error) {
-	now := time.Now()
 
 	return s.repo.GetUserCategoriesWithBudgets(ctx, repo.GetUserCategoriesWithBudgetsParams{
-		UserID: userID,
-		Month:  int32(now.Month()),
-		Year:   int32(now.Year()),
+		UserID: args.UserID,
+		Month:  args.Month,
+		Year:   args.Year,
 	})
 }

@@ -12,3 +12,9 @@ type CreateCategoryRequest struct {
 	Year        int32          `json:"year"`
 	LimitAmount pgtype.Numeric `json:"limit_amount"`
 }
+
+type GetCategories struct {
+	UserID pgtype.UUID
+	Month  int32
+	Year   int32
+}
