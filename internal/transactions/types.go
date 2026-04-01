@@ -20,9 +20,8 @@ type CreateTransactionRequest struct {
 }
 
 type ChartData struct {
-	Monthly []repo.GetMonthlySpendingOverviewRow
-	Weekly  []repo.GetWeeklySpendingOverviewRow
-	Daily   []repo.GetSpendingOverviewRow
+	Weekly []repo.GetWeeklySpendingOverviewRow
+	Daily  []repo.GetSpendingOverviewRow
 }
 
 type OverViewParams struct {

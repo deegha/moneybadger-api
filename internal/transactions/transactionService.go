@@ -3,9 +3,9 @@ package transactions
 import (
 	"context"
 	"fmt"
-
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/sync/errgroup"
+	"time"
 
 	repo "github.com/deegha/moneyBadgerApi/internal/adapters/postgresql/sqlc"
 )
@@ -87,6 +87,16 @@ func (s *svc) GetOverView(ctx context.Context, args OverViewParams) (ChartData, 
 	var chartData ChartData
 	g, ctx := errgroup.WithContext(ctx)
 
+	if args.Month == 0 || args.Year == 0 {
+		now := time.Now()
+		if args.Month == 0 {
+			args.Month = int32(now.Month())
+		}
+		if args.Year == 0 {
+			args.Year = int32(now.Year())
+		}
+	}
+
 	// 1. Fetch Weekly Data
 	g.Go(func() error {
 		weekly, err := s.repo.GetWeeklySpendingOverview(ctx, args.UserID)
@@ -94,20 +104,6 @@ func (s *svc) GetOverView(ctx context.Context, args OverViewParams) (ChartData, 
 			return err
 		}
 		chartData.Weekly = weekly // Direct assignment is safe because no other goroutine touches this field
-		return nil
-	})
-
-	// 2. Fetch Monthly Data
-	g.Go(func() error {
-		monthly, err := s.repo.GetMonthlySpendingOverview(ctx, repo.GetMonthlySpendingOverviewParams{
-			UserID: args.UserID,
-			Month:  args.Month,
-			Year:   args.Year,
-		})
-		if err != nil {
-			return err
-		}
-		chartData.Monthly = monthly
 		return nil
 	})
 
