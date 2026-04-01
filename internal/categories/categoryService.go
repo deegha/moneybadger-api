@@ -3,7 +3,6 @@ package categories
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -57,14 +56,10 @@ func (s *svc) CreateCategories(
 		return repo.Category{}, err
 	}
 
-	now := time.Now()
-
 	_, err = qtx.CreateOrUpdateBudget(ctx, repo.CreateOrUpdateBudgetParams{
 		UserID:      args.UserID,
 		CategoryID:  pgtype.UUID{Bytes: category.ID, Valid: true},
 		LimitAmount: args.LimitAmount,
-		Month:       int32(now.Month()),
-		Year:        int32(now.Year()),
 	})
 	if err != nil {
 		return repo.Category{}, err
@@ -82,9 +77,5 @@ func (s *svc) ListCategories(
 	args GetCategories,
 ) ([]repo.GetUserCategoriesWithBudgetsRow, error) {
 
-	return s.repo.GetUserCategoriesWithBudgets(ctx, repo.GetUserCategoriesWithBudgetsParams{
-		UserID: args.UserID,
-		Month:  args.Month,
-		Year:   args.Year,
-	})
+	return s.repo.GetUserCategoriesWithBudgets(ctx, args.UserID)
 }

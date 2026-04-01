@@ -29,9 +29,9 @@ type Querier interface {
 	GetUpcomingBills(ctx context.Context, userID pgtype.UUID) ([]RecurringBill, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserCategories(ctx context.Context, userID pgtype.UUID) ([]Category, error)
-	GetUserCategoriesWithBudgets(ctx context.Context, arg GetUserCategoriesWithBudgetsParams) ([]GetUserCategoriesWithBudgetsRow, error)
+	GetUserCategoriesWithBudgets(ctx context.Context, userID pgtype.UUID) ([]GetUserCategoriesWithBudgetsRow, error)
 	GetWeeklySpendingOverview(ctx context.Context, userID pgtype.UUID) ([]GetWeeklySpendingOverviewRow, error)
-	ListBudgetsByMonth(ctx context.Context, arg ListBudgetsByMonthParams) ([]Budget, error)
+	ListBudgets(ctx context.Context, userID pgtype.UUID) ([]Budget, error)
 	UpdateRecurringBillDate(ctx context.Context, arg UpdateRecurringBillDateParams) error
 }
 

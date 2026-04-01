@@ -147,8 +147,6 @@ type Budget struct {
 	UserID      pgtype.UUID    `json:"user_id"`
 	CategoryID  pgtype.UUID    `json:"category_id"`
 	LimitAmount pgtype.Numeric `json:"limit_amount"`
-	Month       int32          `json:"month"`
-	Year        int32          `json:"year"`
 }
 
 type Category struct {

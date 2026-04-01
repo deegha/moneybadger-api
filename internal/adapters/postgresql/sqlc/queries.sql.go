@@ -52,44 +52,32 @@ func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) 
 
 const createOrUpdateBudget = `-- name: CreateOrUpdateBudget :one
 INSERT INTO budgets (
-    user_id, 
-    category_id, 
-    limit_amount, 
-    month, 
-    year
+    user_id,
+    category_id,
+    limit_amount
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3
 )
-ON CONFLICT (user_id, category_id, month, year) 
-DO UPDATE SET 
+ON CONFLICT (user_id, category_id)
+DO UPDATE SET
     limit_amount = EXCLUDED.limit_amount
-RETURNING id, user_id, category_id, limit_amount, month, year
+RETURNING id, user_id, category_id, limit_amount
 `
 
 type CreateOrUpdateBudgetParams struct {
 	UserID      pgtype.UUID    `json:"user_id"`
 	CategoryID  pgtype.UUID    `json:"category_id"`
 	LimitAmount pgtype.Numeric `json:"limit_amount"`
-	Month       int32          `json:"month"`
-	Year        int32          `json:"year"`
 }
 
 func (q *Queries) CreateOrUpdateBudget(ctx context.Context, arg CreateOrUpdateBudgetParams) (Budget, error) {
-	row := q.db.QueryRow(ctx, createOrUpdateBudget,
-		arg.UserID,
-		arg.CategoryID,
-		arg.LimitAmount,
-		arg.Month,
-		arg.Year,
-	)
+	row := q.db.QueryRow(ctx, createOrUpdateBudget, arg.UserID, arg.CategoryID, arg.LimitAmount)
 	var i Budget
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
 		&i.CategoryID,
 		&i.LimitAmount,
-		&i.Month,
-		&i.Year,
 	)
 	return i, err
 }
@@ -180,35 +168,24 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const getBudgetByCategory = `-- name: GetBudgetByCategory :one
-SELECT id, user_id, category_id, limit_amount, month, year FROM budgets
-WHERE user_id = $1 
-  AND category_id = $2 
-  AND month = $3 
-  AND year = $4
+SELECT id, user_id, category_id, limit_amount FROM budgets
+WHERE user_id = $1
+  AND category_id = $2
 `
 
 type GetBudgetByCategoryParams struct {
 	UserID     pgtype.UUID `json:"user_id"`
 	CategoryID pgtype.UUID `json:"category_id"`
-	Month      int32       `json:"month"`
-	Year       int32       `json:"year"`
 }
 
 func (q *Queries) GetBudgetByCategory(ctx context.Context, arg GetBudgetByCategoryParams) (Budget, error) {
-	row := q.db.QueryRow(ctx, getBudgetByCategory,
-		arg.UserID,
-		arg.CategoryID,
-		arg.Month,
-		arg.Year,
-	)
+	row := q.db.QueryRow(ctx, getBudgetByCategory, arg.UserID, arg.CategoryID)
 	var i Budget
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
 		&i.CategoryID,
 		&i.LimitAmount,
-		&i.Month,
-		&i.Year,
 	)
 	return i, err
 }
@@ -614,7 +591,7 @@ func (q *Queries) GetUserCategories(ctx context.Context, userID pgtype.UUID) ([]
 }
 
 const getUserCategoriesWithBudgets = `-- name: GetUserCategoriesWithBudgets :many
-SELECT 
+SELECT
     c.id,
     c.user_id,
     c.name,
@@ -624,36 +601,27 @@ SELECT
     COALESCE(b.limit_amount, 0.00)::DECIMAL(15,2) as budget_limit,
     COALESCE(s.total_spent, 0.00)::DECIMAL(15,2) as total_spent,
     -- Calculate percentage for the progress bar, capped at 100 or allowed to exceed
-    CASE 
-        WHEN COALESCE(b.limit_amount, 0) = 0 THEN 0 
-        ELSE ROUND((COALESCE(s.total_spent, 0) / b.limit_amount) * 100) 
+    CASE
+        WHEN COALESCE(b.limit_amount, 0) = 0 THEN 0
+        ELSE ROUND((COALESCE(s.total_spent, 0) / b.limit_amount) * 100)
     END as spent_percentage
 FROM categories c
-LEFT JOIN budgets b ON 
-    c.id = b.category_id AND 
-    b.month = $2 AND 
-    b.year = $3
+LEFT JOIN budgets b ON c.id = b.category_id
 LEFT JOIN (
-    /* Subquery to sum transactions for the given month/year */
-    SELECT 
-        category_id, 
-        SUM(amount) as total_spent 
-    FROM transactions 
-    WHERE 
-        EXTRACT(MONTH FROM date) = $2 AND 
-        EXTRACT(YEAR FROM date) = $3 AND
-        type = 'expense' -- Only count expenses toward the budget
+    /* Subquery to sum transactions for the current month */
+    SELECT
+        category_id,
+        SUM(amount) as total_spent
+    FROM transactions
+    WHERE
+        EXTRACT(MONTH FROM date) = EXTRACT(MONTH FROM CURRENT_DATE) AND
+        EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE) AND
+        type = 'expense'
     GROUP BY category_id
 ) s ON c.id = s.category_id
 WHERE c.user_id = $1
 ORDER BY c.name ASC
 `
-
-type GetUserCategoriesWithBudgetsParams struct {
-	UserID pgtype.UUID `json:"user_id"`
-	Month  int32       `json:"month"`
-	Year   int32       `json:"year"`
-}
 
 type GetUserCategoriesWithBudgetsRow struct {
 	ID              uuid.UUID          `json:"id"`
@@ -667,8 +635,8 @@ type GetUserCategoriesWithBudgetsRow struct {
 	SpentPercentage interface{}        `json:"spent_percentage"`
 }
 
-func (q *Queries) GetUserCategoriesWithBudgets(ctx context.Context, arg GetUserCategoriesWithBudgetsParams) ([]GetUserCategoriesWithBudgetsRow, error) {
-	rows, err := q.db.Query(ctx, getUserCategoriesWithBudgets, arg.UserID, arg.Month, arg.Year)
+func (q *Queries) GetUserCategoriesWithBudgets(ctx context.Context, userID pgtype.UUID) ([]GetUserCategoriesWithBudgetsRow, error) {
+	rows, err := q.db.Query(ctx, getUserCategoriesWithBudgets, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -734,21 +702,13 @@ func (q *Queries) GetWeeklySpendingOverview(ctx context.Context, userID pgtype.U
 	return items, nil
 }
 
-const listBudgetsByMonth = `-- name: ListBudgetsByMonth :many
-SELECT id, user_id, category_id, limit_amount, month, year FROM budgets
-WHERE user_id = $1 
-  AND month = $2 
-  AND year = $3
+const listBudgets = `-- name: ListBudgets :many
+SELECT id, user_id, category_id, limit_amount FROM budgets
+WHERE user_id = $1
 `
 
-type ListBudgetsByMonthParams struct {
-	UserID pgtype.UUID `json:"user_id"`
-	Month  int32       `json:"month"`
-	Year   int32       `json:"year"`
-}
-
-func (q *Queries) ListBudgetsByMonth(ctx context.Context, arg ListBudgetsByMonthParams) ([]Budget, error) {
-	rows, err := q.db.Query(ctx, listBudgetsByMonth, arg.UserID, arg.Month, arg.Year)
+func (q *Queries) ListBudgets(ctx context.Context, userID pgtype.UUID) ([]Budget, error) {
+	rows, err := q.db.Query(ctx, listBudgets, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -761,8 +721,6 @@ func (q *Queries) ListBudgetsByMonth(ctx context.Context, arg ListBudgetsByMonth
 			&i.UserID,
 			&i.CategoryID,
 			&i.LimitAmount,
-			&i.Month,
-			&i.Year,
 		); err != nil {
 			return nil, err
 		}
